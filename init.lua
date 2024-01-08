@@ -191,13 +191,15 @@ require('lazy').setup({
 
   {
     -- Theme inspired by Atom
-    'navarasu/onedark.nvim',
+    'rose-pine/neovim',
+    name = 'rose-pine',
     priority = 1000,
     config = function()
-      vim.cmd.colorscheme 'onedark'
+      vim.cmd.colorscheme 'rose-pine'
+      vim.api.nvim_set_hl(0,"NormalFloat", { bg = "none" })
     end,
   },
-
+'tribela/vim-transparent',
   {
     -- Set lualine as statusline
     'nvim-lualine/lualine.nvim',
@@ -253,7 +255,18 @@ require('lazy').setup({
     },
     build = ':TSUpdate',
   },
+  {
 
+   "kwakzalver/duckytype.nvim",
+--  config  = function ()
+--    local opts = ""
+--   vim.keymap.set('n', '<leader>y', function ()
+--    vim.cmd "Duckytype"
+--   end)
+--  end,
+--  opts = {},
+
+  },
   -- NOTE: Next Step on Your Neovim Journey: Add/Configure additional "plugins" for kickstart
   --       These are some example plugins that I've included in the kickstart repository.
   --       Uncomment any of the lines below to enable them.
@@ -277,7 +290,8 @@ require('lazy').setup({
 vim.o.hlsearch = false
 
 -- Make line numbers default
-vim.wo.number = true
+vim.wo.relativenumber = true
+
 
 -- Enable mouse mode
 vim.o.mouse = 'a'
