@@ -189,25 +189,13 @@ require('lazy').setup({
     },
   },
 
-  {
-    -- Theme inspired by Atom
-    'rose-pine/neovim',
-    name = 'rose-pine',
-    priority = 1000,
-    config = function()
-      vim.cmd.colorscheme 'rose-pine'
-      vim.api.nvim_set_hl(0,"NormalFloat", { bg = "none" })
-    end,
-  },
-'tribela/vim-transparent',
-  {
+    {
     -- Set lualine as statusline
     'nvim-lualine/lualine.nvim',
     -- See `:help lualine.txt`
     opts = {
       options = {
         icons_enabled = false,
-        theme = 'onedark',
         component_separators = '|',
         section_separators = '',
       },
@@ -256,16 +244,26 @@ require('lazy').setup({
     build = ':TSUpdate',
   },
   {
-
-   "kwakzalver/duckytype.nvim",
---  config  = function ()
---    local opts = ""
---   vim.keymap.set('n', '<leader>y', function ()
---    vim.cmd "Duckytype"
---   end)
---  end,
---  opts = {},
-
+    "ThePrimeagen/harpoon",
+    branch = "harpoon2",
+    dependencies = { "nvim-lua/plenary.nvim" }
+  },
+  {
+    "https://github.com/apple/pkl-neovim.git",
+    lazy = true,
+    event = "BufReadPre *.pkl",
+    dependencies = {
+      "nvim-treesitter/nvim-treesitter",
+    },
+    build = function ()
+      vim.cmd("TSInstall! pkl")
+    end,
+  },
+  {
+    'SirVer/ultisnips'
+  },
+  {
+    'mfussenegger/nvim-dap',
   },
   -- NOTE: Next Step on Your Neovim Journey: Add/Configure additional "plugins" for kickstart
   --       These are some example plugins that I've included in the kickstart repository.
@@ -279,8 +277,36 @@ require('lazy').setup({
   --    Uncomment the following line and add your plugins to `lua/custom/plugins/*.lua` to get going.
   --
   --    For additional information see: https://github.com/folke/lazy.nvim#-structuring-your-plugins
-  -- { import = 'custom.plugins' },
+   { import = 'custom.plugins' },
 }, {})
+
+require("dap").adapters.gdb = {
+  type = "executable",
+  command = "/usr/bin/gdb --args",
+  name = "gdb",
+}
+
+local gdb = {
+  name = "Launch gdb",
+  type = "gdb",
+  request = "launch",
+  program = function ()
+    return vim.fn.getcwd() .. "/" .. vim.fn.input(
+      "Path to executable: ")
+  end,
+  cwd = "${workspaceFolder}",
+  stopOnEntry = false,
+  args = {},
+  runInTorminal = false,
+}
+
+require("dap").configurations.c = {
+  gdb
+}
+
+vim.keymap.set("n", '<leader>dk', function () require('dap').continue() end)
+vim.keymap.set("n", '<leader>dl', function () require('dap').run_last() end)
+vim.keymap.set("n", '<leader>db', function () require('dap').toggle_breakpoint() end)
 
 -- [[ Setting options ]]
 -- See `:help vim.o`
@@ -294,7 +320,7 @@ vim.wo.relativenumber = true
 
 
 -- Enable mouse mode
-vim.o.mouse = 'a'
+vim.o.mouse = nil
 
 -- Sync clipboard between OS and Neovim.
 --  Remove this option if you want your OS clipboard to remain independent.
@@ -414,6 +440,9 @@ vim.keymap.set('n', '<leader>/', function()
   })
 end, { desc = '[/] Fuzzily search in current buffer' })
 
+local function getPath(str)
+    return str:match("(.*[/\\])")
+end
 local function telescope_live_grep_open_files()
   require('telescope.builtin').live_grep {
     grep_open_files = true,
@@ -423,6 +452,8 @@ end
 vim.keymap.set('n', '<leader>s/', telescope_live_grep_open_files, { desc = '[S]earch [/] in Open Files' })
 vim.keymap.set('n', '<leader>ss', require('telescope.builtin').builtin, { desc = '[S]earch [S]elect Telescope' })
 vim.keymap.set('n', '<leader>gf', require('telescope.builtin').git_files, { desc = 'Search [G]it [F]iles' })
+vim.keymap.set('n', '<leader>gs', ':Git<CR>', { desc = 'Open [G]it [S]tatus'})
+vim.keymap.set('n', '<leader>.', ':Ex<CR>', {desc = 'Open current buffer'})
 vim.keymap.set('n', '<leader>sf', require('telescope.builtin').find_files, { desc = '[S]earch [F]iles' })
 vim.keymap.set('n', '<leader>sh', require('telescope.builtin').help_tags, { desc = '[S]earch [H]elp' })
 vim.keymap.set('n', '<leader>sw', require('telescope.builtin').grep_string, { desc = '[S]earch current [W]ord' })
@@ -437,7 +468,7 @@ vim.keymap.set('n', '<leader>sr', require('telescope.builtin').resume, { desc = 
 vim.defer_fn(function()
   require('nvim-treesitter.configs').setup {
     -- Add languages to be installed here that you want installed for treesitter
-    ensure_installed = { 'c', 'cpp', 'go', 'lua', 'python', 'rust', 'tsx', 'javascript', 'typescript', 'vimdoc', 'vim', 'bash' },
+    ensure_installed = { 'c', 'cpp', 'go', 'lua', 'python', 'rust', 'tsx', 'javascript', "json" , 'typescript', 'vimdoc', 'vim', 'bash', 'pkl', 'hyprlang' },
 
     -- Autoinstall languages that are not installed. Defaults to false (but you can change for yourself!)
     auto_install = false,
@@ -499,7 +530,15 @@ vim.defer_fn(function()
     },
   }
 end, 0)
-
+require('nvim-treesitter.parsers').get_parser_configs().ebnf = {
+    install_info = {
+        url = 'https://github.com/RubixDev/ebnf.git',
+        files = { 'src/parser.c' },
+        location = 'crates/tree-sitter-ebnf',
+        branch = 'main',
+    },
+}
+vim.filetype.add {extension = {ebnf = 'ebnf'}}
 -- [[ Configure LSP ]]
 --  This function gets run when an LSP connects to a particular buffer.
 local on_attach = function(_, bufnr)
@@ -577,13 +616,15 @@ require('mason-lspconfig').setup()
 --  If you want to override the default filetypes that your language server will attach to you can
 --  define the property 'filetypes' to the map in question.
 local servers = {
-  -- clangd = {},
-  -- gopls = {},
+  clangd = {},
+  gopls = {},
   -- pyright = {},
-  -- rust_analyzer = {},
+  rust_analyzer = {},
+  zls = {},
+  templ = {},
   -- tsserver = {},
-  -- html = { filetypes = { 'html', 'twig', 'hbs'} },
-
+  html = { filetypes = { 'html', 'twig', 'hbs', 'templ'} },
+  htmx = {filetypes = {'html', 'templ'}},
   lua_ls = {
     Lua = {
       workspace = { checkThirdParty = false },
@@ -594,6 +635,10 @@ local servers = {
   },
 }
 
+vim.filetype.add({extension = { templ = "templ"}})
+vim.filetype.add({
+  pattern = { [".*/hypr/.*%.conf"] = "hyprlang" }
+})
 -- Setup neovim lua configuration
 require('neodev').setup()
 
@@ -670,6 +715,49 @@ cmp.setup {
     { name = 'path' },
   },
 }
+--[[Harpoon Setup]]
+local harpoon = require("harpoon")
+
+harpoon:setup({})
+
+vim.keymap.set("n", "<leader>H", function () harpoon:list():append() end, {desc = "[H]arpoon append file"})
+vim.keymap.set("n", "<C-e>", function () harpoon.ui:toggle_quick_menu(harpoon:list()) end)
+vim.keymap.set("n", "<C-h>", function() harpoon:list():select(1) end)
+vim.keymap.set("n", "<C-t>", function() harpoon:list():select(2) end)
+vim.keymap.set("n", "<C-n>", function() harpoon:list():select(3) end)
+vim.keymap.set("n", "<C-s>", function() harpoon:list():select(4) end)
+
+local function setUpLuaSnip()
+  local ls = require("luasnip")
+
+  local s = ls.snippet
+  local t = ls.text_node
+  local i = ls.insert_node
+
+
+  ls.add_snippets("go", {
+    s("ifr", {
+      t("if "),
+      i(1, "err"),
+      t({" != nil {", "\t"}),
+      t("return "),
+      i(0, "err"),
+      t({"\t", "}"}),
+    })
+  })
+  ls.add_snippets("go", {
+    s("ifrn", {
+      t({"if err != nil {", "\t"}),
+      t("return "),
+      i(0, "nil"),
+      t({", err", "}"}),
+    })
+  })
+end
+setUpLuaSnip()
+require "langcmd"
+
+
 
 -- The line beneath this is called `modeline`. See `:help modeline`
 -- vim: ts=2 sts=2 sw=2 et
